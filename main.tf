@@ -1,30 +1,35 @@
-resource "random_pet" "rg-name" {
-  prefix = var.resource_group_name_prefix
-}
+# resource "random_pet" "rg-name" {
+#   prefix = var.resource_group_name_prefix
+# }
+
+# resource "azurerm_resource_group" "rg" {
+#   name     = random_pet.rg-name.id
+#   location = var.resource_group_location
+# }
 
 resource "azurerm_resource_group" "rg" {
-  name     = random_pet.rg-name.id
+  name     = "hyperv-rg"
   location = var.resource_group_location
 }
 
 # Create virtual network
-resource "azurerm_virtual_network" "myterraformnetwork" {
-  name                = "terraform-vnet"
+resource "azurerm_virtual_network" "hypervnetwork" {
+  name                = "hyperv-vnet"
   address_space       = ["10.0.0.0/16"]
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
 }
 
 # Create subnet
-resource "azurerm_subnet" "myterraformsubnet" {
-  name                 = "servers"
+resource "azurerm_subnet" "hosts" {
+  name                 = "hosts"
   resource_group_name  = azurerm_resource_group.rg.name
-  virtual_network_name = azurerm_virtual_network.myterraformnetwork.name
+  virtual_network_name = azurerm_virtual_network.hypervnetwork.name
   address_prefixes     = ["10.0.1.0/24"]
 }
 
 # Create public IPs
-resource "azurerm_public_ip" "myterraformpublicip" {
+resource "azurerm_public_ip" "hypervpublicip" {
   name                = "${var.vmname}-ip"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
@@ -32,7 +37,7 @@ resource "azurerm_public_ip" "myterraformpublicip" {
 }
 
 # Create Network Security Group and rule
-resource "azurerm_network_security_group" "myterraformnsg" {
+resource "azurerm_network_security_group" "hostnsg" {
   name                = "${var.vmname}-nsg"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
@@ -51,23 +56,23 @@ resource "azurerm_network_security_group" "myterraformnsg" {
 }
 
 # Create network interface
-resource "azurerm_network_interface" "myterraformnic" {
+resource "azurerm_network_interface" "hypervnic" {
   name                = "${var.vmname}-nic"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
 
   ip_configuration {
     name                          = "${var.vmname}-ipconfig"
-    subnet_id                     = azurerm_subnet.myterraformsubnet.id
+    subnet_id                     = azurerm_subnet.hosts.id
     private_ip_address_allocation = "Dynamic"
-    public_ip_address_id          = azurerm_public_ip.myterraformpublicip.id
+    public_ip_address_id          = azurerm_public_ip.hypervpublicip.id
   }
 }
 
 # Connect the security group to the network interface
-resource "azurerm_network_interface_security_group_association" "example" {
-  network_interface_id      = azurerm_network_interface.myterraformnic.id
-  network_security_group_id = azurerm_network_security_group.myterraformnsg.id
+resource "azurerm_network_interface_security_group_association" "nsgattach" {
+  network_interface_id      = azurerm_network_interface.hypervnic.id
+  network_security_group_id = azurerm_network_security_group.hostnsg.id
 }
 
 # Generate random text for a unique storage account name
@@ -81,7 +86,7 @@ resource "random_id" "randomId" {
 }
 
 # Create storage account for boot diagnostics
-resource "azurerm_storage_account" "mystorageaccount" {
+resource "azurerm_storage_account" "diagstorage" {
   name                     = "diag${random_id.randomId.hex}"
   location                 = azurerm_resource_group.rg.location
   resource_group_name      = azurerm_resource_group.rg.name
@@ -90,11 +95,11 @@ resource "azurerm_storage_account" "mystorageaccount" {
 }
 
 # Create virtual machine
-resource "azurerm_windows_virtual_machine" "myterraformvm" {
+resource "azurerm_windows_virtual_machine" "hypervvm" {
   name                  = var.vmname
   location              = azurerm_resource_group.rg.location
   resource_group_name   = azurerm_resource_group.rg.name
-  network_interface_ids = [azurerm_network_interface.myterraformnic.id]
+  network_interface_ids = [azurerm_network_interface.hypervnic.id]
   size                  = "Standard_D8s_v3"
   admin_username        = var.adminuser
   admin_password        = var.adminpassword
@@ -113,7 +118,7 @@ resource "azurerm_windows_virtual_machine" "myterraformvm" {
   }
 
   boot_diagnostics {
-    storage_account_uri = azurerm_storage_account.mystorageaccount.primary_blob_endpoint
+    storage_account_uri = azurerm_storage_account.diagstorage.primary_blob_endpoint
   }
 }
 
@@ -128,15 +133,15 @@ resource "azurerm_managed_disk" "datadisk" {
 
 resource "azurerm_virtual_machine_data_disk_attachment" "datadiskattach" {
   managed_disk_id    = azurerm_managed_disk.datadisk.id
-  virtual_machine_id = azurerm_windows_virtual_machine.myterraformvm.id
+  virtual_machine_id = azurerm_windows_virtual_machine.hypervvm.id
   lun                = "0"
   caching            = "ReadOnly"
 }
 
 
-resource "azurerm_virtual_machine_extension" "myterraformvmext" {
+resource "azurerm_virtual_machine_extension" "hypervvmext" {
   name                 = "${var.vmname}-vmext"
-  virtual_machine_id   = azurerm_windows_virtual_machine.myterraformvm.id
+  virtual_machine_id   = azurerm_windows_virtual_machine.hypervvm.id
   publisher            = "Microsoft.Compute"
   type                 = "CustomScriptExtension"
   type_handler_version = "1.10"

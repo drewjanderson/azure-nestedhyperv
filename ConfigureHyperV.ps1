@@ -17,11 +17,7 @@ netsh advfirewall firewall set rule group="File and Printer Sharing" new enable=
 # Import Hyper-V PowerShell Module
 Import-Module Hyper-V
 
-# Create Internal switch for VMs
-# New-VMSwitch -Name "InternalSwitchNAT" -SwitchType Internal
-
 # Configure InternalSwitchNAT network
-# $switchifindex = Get-NetAdapter -Name "vEthernet (InternalSwitchNat)"
 $switchifindex = Get-NetAdapter -Name "vEthernet (nat)"
 New-NetIPAddress -IPAddress 192.168.217.1 -PrefixLength 24 -InterfaceIndex $switchifindex.ifIndex
 New-NetNat -Name "InternalNATnet" -InternalIPInterfaceAddressPrefix 192.168.217.0/24

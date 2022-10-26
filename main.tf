@@ -131,6 +131,9 @@ resource "azurerm_virtual_machine_data_disk_attachment" "datadiskattach" {
 
 
 resource "azurerm_virtual_machine_extension" "hypervvmext" {
+  depends_on = [
+    azurerm_virtual_machine_data_disk_attachment.datadiskattach
+  ]
   name                 = "${var.vmname}-vmext"
   virtual_machine_id   = azurerm_windows_virtual_machine.hypervvm.id
   publisher            = "Microsoft.Compute"

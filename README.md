@@ -11,3 +11,8 @@ Configure all guest NICs on the 192.168.217.0/24 network starting at 192.168.217
 * Default gateway: 192.168.217.1
 * Primary DNS: 8.8.8.8
 * Secondary DNS: 1.1.1.1
+
+## Pre-requisites
+
+* Azure CLI - [Download](https://aka.ms/azurecli)
+* Terraform - [Download](https://www.terraform.io/downloads)
